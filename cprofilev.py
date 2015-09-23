@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# -*- coding: utf-8 -*-
 import argparse
 import bottle
 import cProfile
@@ -8,15 +8,7 @@ import pstats
 import re
 import sys
 import threading
-
-try:
-    from cStringIO import StringIO
-except ImportError:
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        # Python 3 compatibility.
-        from io import StringIO
+from cStringIO import StringIO
 
 
 VERSION = '1.0.7'
@@ -52,6 +44,34 @@ STATS_TEMPLATE = """\
 SORT_KEY = 'sort'
 FUNC_NAME_KEY = 'func_name'
 
+def f8(x):
+    return "%9.3f" % x
+from pstats import func_std_string
+class StatsEx(pstats.Stats):
+    def print_title(self):
+        print >> self.stream, '   ncalls   tottime   percall   cumtime   percall',
+        print >> self.stream, 'filename:lineno(function)时间:ms'
+    def print_line(self, func):  # hack : should print percentages
+        cc, nc, tt, ct, callers = self.stats[func]
+
+        # cc和ncs的关系?
+        c = str(nc)
+        if nc != cc:
+            c = c + '/' + str(cc)
+        print >> self.stream, c.rjust(9),
+        print >> self.stream, f8(tt * 1000), # 单位: ms
+
+        if nc == 0:
+            print >> self.stream, ' '*8,
+        else:
+            print >> self.stream, f8(float(tt)/nc * 1000),
+
+        print >> self.stream, f8(ct * 1000),
+        if cc == 0:
+            print >> self.stream, ' '*8,
+        else:
+            print >> self.stream, f8(float(ct)/cc * 1000),
+        print >> self.stream, func_std_string(func)
 
 class Stats(object):
     """Wrapper around pstats.Stats class."""
@@ -72,7 +92,7 @@ class Stats(object):
     def __init__(self, profile_output=None, profile_obj=None):
         self.profile = profile_output or profile_obj
         self.stream = StringIO()
-        self.stats = pstats.Stats(self.profile, stream=self.stream)
+        self.stats = StatsEx(self.profile, stream=self.stream)
 
     def read_stream(self):
         value = self.stream.getvalue()
@@ -151,14 +171,18 @@ class CProfileV(object):
         self.app.route('/')(self.route_handler)
 
     def route_handler(self):
+        # 每次stats从新开始构建
         self.stats = Stats(self.profile)
 
+        # 提供sort
         func_name = bottle.request.query.get(FUNC_NAME_KEY) or ''
         sort = bottle.request.query.get(SORT_KEY) or ''
 
         self.stats.sort(sort)
         callers = self.stats.show_callers(func_name).read() if func_name else ''
         callees = self.stats.show_callees(func_name).read() if func_name else ''
+
+        # func_name 用于过滤其他的funcs
         data = {
             'title': self.title,
             'stats': self.stats.sort(sort).show(func_name).read(),
@@ -168,6 +192,7 @@ class CProfileV(object):
         return bottle.template(STATS_TEMPLATE, **data)
 
     def start(self):
+        # 启动一个 bottle app
         self.app.run(host=self.address, port=self.port, quiet=True)
 
 
