@@ -57,7 +57,7 @@ class StatsEx(pstats.Stats):
         print >> self.stream, 'filename:lineno(function) Unit:ms'
     def print_line(self, func):  # hack : should print percentages
         cc, nc, tt, ct, callers = self.stats[func]
-        if nc < 40:
+        if nc < 100:
             return
 
         # cc和ncs的关系?
