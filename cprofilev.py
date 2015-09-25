@@ -45,7 +45,11 @@ SORT_KEY = 'sort'
 FUNC_NAME_KEY = 'func_name'
 
 def f8(x):
-    return "%9.3f" % x
+    result = "%9.5f" % x
+    if len(result) > 9:
+        return "X" + result[-8:]
+    else:
+	    return result
 from pstats import func_std_string
 class StatsEx(pstats.Stats):
     def print_title(self):
