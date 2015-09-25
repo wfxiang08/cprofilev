@@ -50,14 +50,16 @@ from pstats import func_std_string
 class StatsEx(pstats.Stats):
     def print_title(self):
         print >> self.stream, '   ncalls   tottime   percall   cumtime   percall',
-        print >> self.stream, 'filename:lineno(function)时间:ms'
+        print >> self.stream, 'filename:lineno(function) Unit:ms'
     def print_line(self, func):  # hack : should print percentages
         cc, nc, tt, ct, callers = self.stats[func]
+        if nc < 40:
+            return
 
         # cc和ncs的关系?
         c = str(nc)
-        if nc != cc:
-            c = c + '/' + str(cc)
+        # if nc != cc:
+        #     c = c + '/' + str(cc)
         print >> self.stream, c.rjust(9),
         print >> self.stream, f8(tt * 1000), # 单位: ms
 
